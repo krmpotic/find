@@ -1,4 +1,4 @@
-package main
+package find
 
 import (
 	"log"
@@ -8,13 +8,14 @@ import (
 )
 
 var SkipDot = true
+var IncludeHidden = false
 
 // Filter returns
 // true, nil -> let through
 // false, error -> skip, error can be fs.SkipDir
 type Filter func (fs.DirEntry) (bool, error)
 
-func NotHidden(d fs.DirEntry) (bool, error) {
+func notHidden(d fs.DirEntry) (bool, error) {
 	if d.Name() == "." {
 		return true, nil
 	}
@@ -31,16 +32,26 @@ func NotHidden(d fs.DirEntry) (bool, error) {
 	return false, err
 }
 
-func Suffix(ext string) Filter {
+func Suffix(ext ...string) Filter {
 	return func (d fs.DirEntry) (bool, error) {
-		if strings.HasSuffix(d.Name(), ext) {
-			return true, nil
+		for _, e := range ext {
+			if strings.HasSuffix(d.Name(), e) {
+				return true, nil
+			}
 		}
 		return false, nil
 	}
 }
 
+func Dir(d fs.DirEntry) (bool, error) {
+	return d.IsDir(), nil
+}
+
 func At(dir string, filters ...Filter) (files []string) {
+	if !IncludeHidden {
+		filters = append(filters, notHidden)
+	}
+
 	fs.WalkDir(os.DirFS(dir), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			log.Fatal(err)
@@ -63,6 +74,7 @@ func At(dir string, filters ...Filter) (files []string) {
 	return files
 }
 
+/*
 func Or(filters ...Filter) Filter {
 	return func (d fs.DirEntry) (bool, error) {
 		for _, f := range filters {
@@ -73,7 +85,4 @@ func Or(filters ...Filter) Filter {
 		return false, nil
 	}
 }
-
-func main() {
-	log.Println(At(".", NotHidden, Or(Suffix(".md"), Suffix(".txt"))))
-}
+*/
